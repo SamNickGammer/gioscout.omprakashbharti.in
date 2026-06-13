@@ -1,0 +1,27 @@
+{
+  "name": "geoscout",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GeoScout — turn Google Maps into a continuously-refreshed lead-intelligence database.",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspace @geoscout/web dev",
+    "build": "yarn workspace @geoscout/web build",
+    "start": "yarn workspace @geoscout/web start",
+    "lint": "yarn workspace @geoscout/web lint",
+    "db:generate": "yarn workspace @geoscout/web db:generate",
+    "db:migrate": "yarn workspace @geoscout/web db:migrate",
+    "db:push": "yarn workspace @geoscout/web db:push",
+    "db:studio": "yarn workspace @geoscout/web db:studio",
+    "ext:build": "yarn workspace @geoscout/extension build",
+    "ext:dev": "yarn workspace @geoscout/extension dev"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "yarn@1.22.22"
+}

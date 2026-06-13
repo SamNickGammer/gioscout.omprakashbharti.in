@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GeoScout — Options</title>
+    <style>
+      :root {
+        --bg: #0e1116; --surface: #161a21; --border: #232a35;
+        --text: #e3e7ee; --muted: #8b93a3; --gold: #e0b53d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; padding: 40px 20px;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(900px 300px at 50% -10%, rgba(224,181,61,0.08), transparent), var(--bg);
+        color: var(--text);
+        display: flex; justify-content: center;
+      }
+      .card {
+        width: 100%; max-width: 440px;
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 14px; padding: 28px;
+      }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p.sub { font-size: 13px; color: var(--muted); margin: 0 0 22px; }
+      label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 16px 0 6px; }
+      input[type="text"], input[type="password"], input[type="number"] {
+        width: 100%; padding: 10px 12px; border-radius: 8px;
+        border: 1px solid var(--border); background: #0f131a; color: var(--text); font-size: 14px;
+      }
+      .row { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 14px; }
+      .row input { width: auto; }
+      .actions { display: flex; gap: 10px; margin-top: 24px; }
+      button {
+        border: none; border-radius: 9px; padding: 11px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
+      }
+      .save { color: #1c1607; background: linear-gradient(135deg, #f0d27a, var(--gold)); flex: 1; }
+      .test { background: #232a35; color: var(--text); }
+      .status { margin-top: 14px; font-size: 13px; min-height: 18px; }
+      .ok { color: #4ade80; }
+      .err { color: #fb7185; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>GeoScout settings</h1>
+      <p class="sub">Connect the extension to your dashboard's ingest API.</p>
+
+      <label for="apiBaseUrl">API base URL</label>
+      <input id="apiBaseUrl" type="text" placeholder="https://gioscout.omprakashbharti.in" />
+
+      <label for="apiKey">Ingest API key</label>
+      <input id="apiKey" type="password" placeholder="INGEST_API_KEY" />
+
+      <label for="maxResults">Max results per scan (0 = no limit)</label>
+      <input id="maxResults" type="number" min="0" value="0" />
+
+      <div class="row">
+        <input id="deepScrape" type="checkbox" checked />
+        <label for="deepScrape" style="margin: 0; text-transform: none; letter-spacing: 0;">
+          Deep scrape (open each place for phone &amp; website)
+        </label>
+      </div>
+
+      <div class="actions">
+        <button class="save" id="save">Save</button>
+        <button class="test" id="test">Test connection</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>GeoScout</title>
+  </head>
+  <body>
+    <header class="header">
+      <img src="../icons/icon48.png" alt="" class="logo" />
+      <div>
+        <div class="title">GeoScout</div>
+        <div class="subtitle">Maps Lead Scanner</div>
+      </div>
+    </header>
+
+    <section id="needs-config" class="banner hidden">
+      Set your API URL &amp; key in
+      <a href="#" id="open-options">Options</a> to start.
+    </section>
+
+    <section class="status">
+      <div class="status-row">
+        <span class="dot" id="dot"></span>
+        <span id="status-text">Idle</span>
+      </div>
+      <div id="query" class="query"></div>
+    </section>
+
+    <section class="stats">
+      <div class="stat"><div class="stat-num" id="found">0</div><div class="stat-label">Found</div></div>
+      <div class="stat"><div class="stat-num" id="sent">0</div><div class="stat-label">Sent</div></div>
+      <div class="stat"><div class="stat-num" id="created">0</div><div class="stat-label">New</div></div>
+      <div class="stat"><div class="stat-num" id="updated">0</div><div class="stat-label">Updated</div></div>
+    </section>
+
+    <p id="message" class="message"></p>
+
+    <button id="action" class="btn">Start scan</button>
+
+    <footer class="footer">
+      <a href="#" id="open-dashboard">Open dashboard</a>
+      <a href="#" id="open-options-2">Options</a>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

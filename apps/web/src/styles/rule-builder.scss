@@ -1,0 +1,75 @@
+// Rule-builder filter panel — richer custom styling authored in SCSS.
+// Tailwind handles layout; this adds the bespoke "control rail" treatment.
+
+$rail-gap: 0.85rem;
+$gold: hsl(43 74% 60%);
+
+.ruleBuilder {
+  display: grid;
+  gap: $rail-gap;
+
+  &__group {
+    display: grid;
+    gap: 0.4rem;
+
+    &-title {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: hsl(var(--muted-foreground));
+
+      &::before {
+        content: '';
+        width: 4px;
+        height: 12px;
+        border-radius: 2px;
+        background: linear-gradient(180deg, $gold, transparent);
+      }
+    }
+  }
+
+  &__range {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 0.5rem;
+
+    .dash {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.8rem;
+    }
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  &__chip {
+    cursor: pointer;
+    user-select: none;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--border));
+    background: transparent;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    transition: all 0.15s ease;
+
+    &:hover {
+      border-color: hsl(var(--gold) / 0.4);
+      color: hsl(var(--foreground));
+    }
+
+    &[data-active='true'] {
+      border-color: hsl(var(--gold) / 0.5);
+      background: hsl(var(--gold) / 0.12);
+      color: $gold;
+    }
+  }
+}
