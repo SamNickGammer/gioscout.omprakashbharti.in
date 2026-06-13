@@ -9,7 +9,7 @@ export interface ExtensionConfig {
 }
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
-  apiBaseUrl: 'http://localhost:3000',
+  apiBaseUrl: 'https://geoscout.omprakashbharti.in',
   apiKey: '',
 };
 
