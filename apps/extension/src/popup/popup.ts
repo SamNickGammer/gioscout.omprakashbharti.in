@@ -96,7 +96,7 @@ $('open-options-2').addEventListener('click', openOptions);
 $('open-dashboard').addEventListener('click', async (e) => {
   e.preventDefault();
   const cfg = await getConfig();
-  chrome.tabs.create({ url: cfg.apiBaseUrl });
+  chrome.tabs.create({ url: `${cfg.apiBaseUrl.replace(/\/$/, '')}/dashboard` });
 });
 
 (async function init() {

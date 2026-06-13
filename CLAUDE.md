@@ -39,9 +39,17 @@ belongs in shared.
 - **UI**: Tailwind + shadcn/ui + SCSS. Professional dark theme (not pure black) with gold accent. Skeletons, not spinners.
 - **Hosting**: Vercel (`gioscout.omprakashbharti.in`).
 
+## Routing
+
+- `/` — public marketing **landing page** (`app/page.tsx`, "field intelligence dossier" aesthetic;
+  scoped fonts Fraunces/Hanken Grotesk/JetBrains Mono via next/font + `src/styles/landing.scss`).
+- `/login` — auth (redirects to `/dashboard` when already signed in).
+- `/dashboard/*` — the authed app (`app/dashboard/`: leads, scans, archive, team, settings).
+- `middleware.ts` matcher protects `/dashboard/*` + data APIs only; `/` is public.
+
 ## Key files
 
-- `packages/shared/src/*` — `status.ts`, `business.ts`, `filters.ts`, `scan-job.ts`, `opportunity.ts`
+- `packages/shared/src/*` — `status.ts`, `business.ts`, `filters.ts`, `scan-job.ts`, `opportunity.ts`, `user.ts`
 - `apps/web/src/db/schema.ts` — all tables
 - `apps/web/src/app/api/ingest/route.ts` — the dedup/upsert engine (extension → DB)
 - `apps/web/src/lib/auth.ts` — JWT sign/verify + password check

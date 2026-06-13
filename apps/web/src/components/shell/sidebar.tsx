@@ -8,11 +8,11 @@ import { Logo } from '@/components/brand/logo';
 import { cn } from '@/lib/utils';
 
 const NAV = [
-  { href: '/', label: 'Leads', icon: LayoutGrid, adminOnly: false },
-  { href: '/scans', label: 'Scan Jobs', icon: Radar, adminOnly: false },
-  { href: '/archive', label: 'Archive', icon: Archive, adminOnly: false },
-  { href: '/team', label: 'Team', icon: Users, adminOnly: true },
-  { href: '/settings', label: 'Settings', icon: Settings, adminOnly: false },
+  { href: '/dashboard', label: 'Leads', icon: LayoutGrid, adminOnly: false },
+  { href: '/dashboard/scans', label: 'Scan Jobs', icon: Radar, adminOnly: false },
+  { href: '/dashboard/archive', label: 'Archive', icon: Archive, adminOnly: false },
+  { href: '/dashboard/team', label: 'Team', icon: Users, adminOnly: true },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings, adminOnly: false },
 ];
 
 export function Sidebar({ role }: { role: UserRole }) {
@@ -20,7 +20,7 @@ export function Sidebar({ role }: { role: UserRole }) {
   const nav = NAV.filter((item) => !item.adminOnly || role === 'admin');
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-border/70 bg-card/40 px-3 py-5 md:flex">
-      <Link href="/" className="mb-8 flex items-center gap-2 px-2">
+      <Link href="/dashboard" className="mb-8 flex items-center gap-2 px-2">
         <Logo size={32} />
         <span className="text-lg font-semibold tracking-tight text-gold-gradient">
           GeoScout
@@ -29,7 +29,7 @@ export function Sidebar({ role }: { role: UserRole }) {
 
       <nav className="flex flex-col gap-1">
         {nav.map(({ href, label, icon: Icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          const active = href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
           return (
             <Link
               key={href}

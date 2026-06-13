@@ -32,7 +32,7 @@ function LoginForm() {
         setError(data.error ?? 'Login failed');
         return;
       }
-      router.replace(params.get('next') || '/');
+      router.replace(params.get('next') || '/dashboard');
       router.refresh();
     } catch {
       setError('Something went wrong. Try again.');
