@@ -174,8 +174,8 @@ export class MapsScraper {
     return /\d{4,}/.test(t) ? t : null;
   }
 
-  private findPrice(panel: Element): string | null {
-    const nodes = Array.from(panel.querySelectorAll('span, button'));
+  private findPrice(root: ParentNode): string | null {
+    const nodes = Array.from(root.querySelectorAll('span, button'));
     for (const n of nodes) {
       const t = text(n);
       if (t && t.length < 40 && priceText(t)) return t;
@@ -183,65 +183,90 @@ export class MapsScraper {
     return null;
   }
 
+  /** Re-find a card by its Place ID (DOM nodes are recreated after back-nav). */
+  private async findCardByPlaceId(placeId: string): Promise<Element | null> {
+    const feed = this.getFeed();
+    for (let attempt = 0; attempt < 10 && !this.stopped; attempt++) {
+      const cards = pickAll(feed ?? document, 'card');
+      for (const card of cards) {
+        const a = pick(card, 'cardLink') as HTMLAnchorElement | null;
+        if (a && extractPlaceId(a.href) === placeId) return card;
+      }
+      // Not rendered yet — scroll the list to load more and retry.
+      if (feed) feed.scrollBy({ top: 800 });
+      await sleep(250);
+    }
+    return null;
+  }
+
+  private async waitFeed(): Promise<void> {
+    for (let i = 0; i < 30 && !this.stopped; i++) {
+      if (/\/maps\/search\//.test(location.href) || this.getFeed()) return;
+      await sleep(150);
+    }
+  }
+
   /**
-   * Open a place's detail panel and capture EVERYTHING available: website,
-   * phone, email, exact address, category, price, coordinates.
-   *
-   * Key fix: Google renders the address first and the website/phone buttons a
-   * moment later. We wait until the panel header matches THIS business, then
-   * give the action buttons a settle delay before reading — otherwise the
-   * website/phone come back empty (the old "No website" bug).
+   * Open a place's detail panel and capture EVERYTHING: website, phone, email,
+   * exact address, category, price, coordinates. Reads from the live document
+   * (the open place panel is the page's main content) and uses the URL turning
+   * into /maps/place/ as the reliable "detail loaded" signal.
    */
-  private async deepEnrich(card: Element, biz: ScrapedBusiness): Promise<void> {
-    const link = pick(card, 'cardLink') as HTMLAnchorElement | null;
+  private async deepEnrich(biz: ScrapedBusiness): Promise<void> {
+    const card = await this.findCardByPlaceId(biz.placeId);
+    const link = card ? (pick(card, 'cardLink') as HTMLAnchorElement | null) : null;
     if (!link) return;
+
+    (link as HTMLElement).scrollIntoView({ block: 'center' });
+    await sleep(150);
     link.click();
 
-    const nameKey = biz.name.slice(0, 10).toLowerCase();
-    let panel: Element | null = null;
-    for (let i = 0; i < 40 && !this.stopped; i++) {
+    // Wait until the place panel is actually open (URL becomes /maps/place/…).
+    for (let i = 0; i < 45 && !this.stopped; i++) {
       await sleep(150);
-      panel = pick(document, 'detailPanel');
-      const header = text(panel ? pick(panel, 'detailName') : null).toLowerCase();
-      if (panel && header && nameKey && header.includes(nameKey)) break;
-      // Fallback: if a website or phone button is already present, good enough.
-      if (panel && (pick(panel, 'detailWebsite') || pick(panel, 'detailPhone'))) break;
+      if (/\/maps\/place\//.test(location.href)) break;
     }
     // Let the action buttons (website/phone/email) finish rendering.
-    await sleep(500);
-    panel = pick(document, 'detailPanel');
+    await sleep(550);
 
-    if (panel) {
-      const websiteEl = pick(panel, 'detailWebsite') as HTMLAnchorElement | null;
-      if (websiteEl?.href) biz.website = websiteEl.href;
+    const websiteEl = document.querySelector<HTMLAnchorElement>(
+      'a[data-item-id="authority"], a[data-item-id^="authority"], a[aria-label^="Website:"]',
+    );
+    if (websiteEl?.href) biz.website = websiteEl.href;
 
-      const phone = this.extractPhone(pick(panel, 'detailPhone'));
-      if (phone) biz.phone = phone;
+    const phoneEl = document.querySelector(
+      'button[data-item-id^="phone:tel:"], button[data-item-id^="phone"], button[aria-label^="Phone:"]',
+    );
+    const phone = this.extractPhone(phoneEl);
+    if (phone) biz.phone = phone;
 
-      const addrEl = pick(panel, 'detailAddress');
-      const addr = ariaValue(addrEl, 'Address') ?? (addrEl ? text(addrEl) : null);
-      if (addr) biz.address = addr;
+    const addrEl = document.querySelector(
+      'button[data-item-id="address"], button[aria-label^="Address:"]',
+    );
+    const addr = ariaValue(addrEl, 'Address') ?? (addrEl ? text(addrEl) : null);
+    if (addr) biz.address = addr;
 
-      const catEl = pick(panel, 'detailCategory');
-      const cat = text(catEl);
-      if (cat && !isRatingish(cat) && !isHoursish(cat)) biz.category = cat;
+    const catEl = document.querySelector('button[jsaction*="category"]');
+    const cat = text(catEl);
+    if (cat && !isRatingish(cat) && !isHoursish(cat)) biz.category = cat;
 
-      const emailEl = pick(panel, 'detailEmail') as HTMLAnchorElement | null;
-      if (emailEl?.href) biz.email = emailEl.href.replace(/^mailto:/i, '').split('?')[0].trim();
+    const emailEl = document.querySelector<HTMLAnchorElement>('a[href^="mailto:"]');
+    if (emailEl?.href) biz.email = emailEl.href.replace(/^mailto:/i, '').split('?')[0].trim();
 
-      const price = this.findPrice(panel);
-      if (price) biz.priceLevel = price;
-    }
+    const main = document.querySelector('div[role="main"]') ?? document.body;
+    const price = this.findPrice(main);
+    if (price) biz.priceLevel = price;
 
-    // The place's own coordinates appear in the URL once its panel is open.
     const ll = extractLatLng(location.href);
     if (ll.lat != null && ll.lng != null) {
       biz.lat = ll.lat;
       biz.lng = ll.lng;
     }
 
+    // Return to the results list and wait for it to come back.
     history.back();
-    await sleep(700);
+    await this.waitFeed();
+    await sleep(450);
   }
 
   async run(hooks: ScrapeHooks): Promise<number> {
@@ -259,28 +284,34 @@ export class MapsScraper {
 
     await this.scrollToEnd((count) => hooks.onProgress(count, 'Loading results…'));
 
-    const cards = pickAll(this.getFeed() ?? document, 'card');
+    // Phase 1: shallow-parse every card up front (stable — no navigation yet).
+    const items: ScrapedBusiness[] = [];
+    for (const card of pickAll(this.getFeed() ?? document, 'card')) {
+      const biz = this.parseCard(card, query);
+      if (biz && !this.seen.has(biz.placeId)) {
+        this.seen.add(biz.placeId);
+        items.push(biz);
+      }
+    }
+    hooks.onProgress(0, `Found ${items.length} places · fetching details…`);
+
+    // Phase 2: deep-enrich each by re-finding its card (survives DOM re-render).
     let batch: ScrapedBusiness[] = [];
     let found = 0;
 
-    for (let i = 0; i < cards.length; i++) {
+    for (const biz of items) {
       if (this.stopped || hooks.shouldStop()) break;
-      const biz = this.parseCard(cards[i], query);
-      if (!biz || this.seen.has(biz.placeId)) continue;
-      this.seen.add(biz.placeId);
-
-      // Always deep-enrich so every lead has phone/website/email/address/coords.
       try {
-        await this.deepEnrich(cards[i], biz);
+        await this.deepEnrich(biz);
       } catch {
         /* best-effort; keep shallow data */
       }
 
       batch.push(biz);
       found++;
-      hooks.onProgress(found, `Scraped ${found}`);
+      hooks.onProgress(found, `Scraped ${found} / ${items.length}`);
 
-      if (batch.length >= 10) {
+      if (batch.length >= 8) {
         await hooks.onBatch(batch);
         batch = [];
       }
