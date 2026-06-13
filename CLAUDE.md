@@ -30,9 +30,12 @@ belongs in shared.
 
 ## Stack
 
-- **DB**: Neon Postgres + Drizzle ORM (serverless HTTP driver). Schema/client in `apps/web/src/db`.
-- **Files**: Cloudflare R2 (S3-compatible) for lead attachments. Helper in `apps/web/src/lib/r2.ts`.
-- **Auth**: single user. email+password → httpOnly JWT cookie; `apps/web/src/middleware.ts` guards routes.
+- **DB**: Supabase Postgres + Drizzle ORM (postgres.js driver, `prepare:false` for the pooler). Schema/client in `apps/web/src/db`.
+- **Files**: Supabase Storage (bucket `geoscout`). Server-side upload via service-role key — `apps/web/src/lib/storage.ts` + `supabase.ts`. Attachments POST to `/api/attachments` as multipart; bytes pass through the server.
+- **Auth**: MULTI-user, CUSTOM (not Supabase Auth). `users` table (admin/member roles); email+password → httpOnly JWT cookie carrying `{userId,email,name,role}`. `apps/web/src/middleware.ts` guards routes. Shared dataset, attributed per user.
+  - Extension ingest auth is per-user: each user has a personal `api_key` (`gsk_…`); `authenticateApiKey()` in `lib/api.ts` maps the `x-api-key` header → the user, so scans/leads get a `created_by`.
+  - Admins add teammates from the in-app `/team` page (`POST /api/users`). First admin seeded via `yarn workspace @geoscout/web user:add <email> <name> <password> admin`.
+  - Attribution: `businesses.created_by` (first adder, never overwritten by scans), `businesses.assigned_to` (claimable), `scan_jobs.user_id` (who ran it), `lead_comments` (per-lead thread, each comment has an author).
 - **UI**: Tailwind + shadcn/ui + SCSS. Professional dark theme (not pure black) with gold accent. Skeletons, not spinners.
 - **Hosting**: Vercel (`gioscout.omprakashbharti.in`).
 
@@ -46,9 +49,12 @@ belongs in shared.
 
 ## Database tables
 
-`businesses` (canonical, `place_id` UNIQUE) · `business_scan_history` (review/rating
-snapshots) · `scan_jobs` (one row per run) · `filter_templates` (saved rule-sets) ·
-`attachments` (R2 pointers). See `apps/web/src/db/schema.ts`.
+`users` (admin/member, personal api_key) · `businesses` (canonical, `place_id` UNIQUE,
++ `created_by`/`assigned_to`) · `business_scan_history` (review/rating snapshots) ·
+`lead_comments` (per-lead thread) · `scan_jobs` (one row per run, + `user_id`) ·
+`filter_templates` (saved rule-sets) · `attachments` (Supabase Storage pointers).
+See `apps/web/src/db/schema.ts`. NOTE: our table is `public.users` — distinct from
+Supabase's built-in `auth.users` (different schema, no collision).
 
 ## Commands
 
@@ -69,8 +75,10 @@ extension Options page.
 ## Env vars
 
 See `.env.example`. Web app reads them from `apps/web/.env.local`.
-`DATABASE_URL`, `JWT_SECRET`, `AUTH_EMAIL`, `AUTH_PASSWORD_HASH`, `INGEST_API_KEY`,
-`R2_*`, `NEXT_PUBLIC_APP_URL`.
+`DATABASE_URL` (Supabase Postgres URI), `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (storage),
+`SUPABASE_STORAGE_BUCKET`, `JWT_SECRET`, `AUTH_EMAIL`, `AUTH_PASSWORD_HASH`,
+`INGEST_API_KEY`, `NEXT_PUBLIC_APP_URL`.
 
 ## Conventions
 

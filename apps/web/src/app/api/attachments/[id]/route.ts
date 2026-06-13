@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { json, errorJson } from '@/lib/api';
 import { db } from '@/db';
 import { attachments } from '@/db/schema';
-import { deleteObject } from '@/lib/r2';
+import { deleteObject } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 

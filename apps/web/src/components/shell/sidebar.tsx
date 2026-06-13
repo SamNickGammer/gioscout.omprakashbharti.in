@@ -2,19 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Radar, Archive, Settings } from 'lucide-react';
+import { LayoutGrid, Radar, Archive, Settings, Users } from 'lucide-react';
+import type { UserRole } from '@geoscout/shared';
 import { Logo } from '@/components/brand/logo';
 import { cn } from '@/lib/utils';
 
 const NAV = [
-  { href: '/', label: 'Leads', icon: LayoutGrid },
-  { href: '/scans', label: 'Scan Jobs', icon: Radar },
-  { href: '/archive', label: 'Archive', icon: Archive },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/', label: 'Leads', icon: LayoutGrid, adminOnly: false },
+  { href: '/scans', label: 'Scan Jobs', icon: Radar, adminOnly: false },
+  { href: '/archive', label: 'Archive', icon: Archive, adminOnly: false },
+  { href: '/team', label: 'Team', icon: Users, adminOnly: true },
+  { href: '/settings', label: 'Settings', icon: Settings, adminOnly: false },
 ];
 
-export function Sidebar() {
+export function Sidebar({ role }: { role: UserRole }) {
   const pathname = usePathname();
+  const nav = NAV.filter((item) => !item.adminOnly || role === 'admin');
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-border/70 bg-card/40 px-3 py-5 md:flex">
       <Link href="/" className="mb-8 flex items-center gap-2 px-2">
@@ -25,7 +28,7 @@ export function Sidebar() {
       </Link>
 
       <nav className="flex flex-col gap-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {nav.map(({ href, label, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <Link

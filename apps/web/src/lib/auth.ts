@@ -6,8 +6,13 @@ export const SESSION_COOKIE = 'geoscout_session';
 const ALG = 'HS256';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
+import type { UserRole } from '@geoscout/shared';
+
 export interface SessionPayload {
+  userId: string;
   email: string;
+  name: string;
+  role: UserRole;
 }
 
 function secretKey() {
@@ -15,7 +20,7 @@ function secretKey() {
 }
 
 export async function signSession(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ email: payload.email })
+  return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
@@ -27,7 +32,19 @@ export async function verifySession(token: string | undefined): Promise<SessionP
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: [ALG] });
-    if (typeof payload.email === 'string') return { email: payload.email };
+    if (
+      typeof payload.userId === 'string' &&
+      typeof payload.email === 'string' &&
+      typeof payload.name === 'string' &&
+      (payload.role === 'admin' || payload.role === 'member')
+    ) {
+      return {
+        userId: payload.userId,
+        email: payload.email,
+        name: payload.name,
+        role: payload.role,
+      };
+    }
     return null;
   } catch {
     return null;

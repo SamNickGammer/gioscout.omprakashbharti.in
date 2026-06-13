@@ -13,9 +13,9 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar role={session.role} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar email={session.email} />
+        <Topbar name={session.name} email={session.email} role={session.role} />
         <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
       </div>
     </div>

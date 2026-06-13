@@ -14,9 +14,16 @@ import {
   Archive,
   ArchiveRestore,
   Paperclip,
+  Send,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { LEAD_STATUSES, LEAD_STATUS_LABELS, type LeadStatus } from '@geoscout/shared';
+import {
+  LEAD_STATUSES,
+  LEAD_STATUS_LABELS,
+  type LeadStatus,
+  type PublicUser,
+} from '@geoscout/shared';
 import type { Attachment, Business, ScanHistoryRow } from '@/db/schema';
 import {
   Sheet,
@@ -29,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -40,8 +48,18 @@ import { formatNumber, formatRelativeTime } from '@/lib/utils';
 import { OpportunityMeter } from './opportunity-meter';
 import { Sparkline } from './sparkline';
 
+interface Comment {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorId: string | null;
+  authorName: string | null;
+}
+
 interface Detail {
   business: Business;
+  createdByName: string | null;
+  assignedToName: string | null;
   history: ScanHistoryRow[];
   attachments: Attachment[];
 }
@@ -52,22 +70,28 @@ interface Props {
   onUpdated: () => void;
 }
 
+const UNASSIGNED = '__unassigned__';
+
 export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [members, setMembers] = useState<PublicUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [posting, setPosting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async (id: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/businesses/${id}`);
-      if (!res.ok) throw new Error('Failed to load');
-      const data: Detail = await res.json();
-      setDetail(data);
-      setNotes(data.business.notes ?? '');
+      const [dRes, cRes] = await Promise.all([
+        fetch(`/api/businesses/${id}`),
+        fetch(`/api/businesses/${id}/comments`),
+      ]);
+      if (!dRes.ok) throw new Error('Failed to load');
+      setDetail(await dRes.json());
+      setComments(cRes.ok ? await cRes.json() : []);
     } catch {
       toast.error('Could not load lead');
     } finally {
@@ -75,9 +99,20 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
     }
   }, []);
 
+  // Members list (for the assignee dropdown) — fetched once.
+  useEffect(() => {
+    fetch('/api/users')
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setMembers)
+      .catch(() => setMembers([]));
+  }, []);
+
   useEffect(() => {
     if (businessId) load(businessId);
-    else setDetail(null);
+    else {
+      setDetail(null);
+      setComments([]);
+    }
   }, [businessId, load]);
 
   async function patch(body: Record<string, unknown>) {
@@ -95,16 +130,14 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
     onUpdated();
   }
 
-  async function saveNotes() {
-    setSavingNotes(true);
-    await patch({ notes });
-    setSavingNotes(false);
-    toast.success('Notes saved');
-  }
-
   async function changeStatus(status: LeadStatus) {
     await patch({ status });
     toast.success(`Marked ${LEAD_STATUS_LABELS[status]}`);
+  }
+
+  async function changeAssignee(value: string) {
+    await patch({ assignedTo: value === UNASSIGNED ? null : value });
+    toast.success('Assignment updated');
   }
 
   async function toggleArchive() {
@@ -113,32 +146,39 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
     toast.success(detail.business.isArchived ? 'Restored' : 'Archived');
   }
 
+  async function postComment() {
+    if (!businessId || !newComment.trim()) return;
+    setPosting(true);
+    try {
+      const res = await fetch(`/api/businesses/${businessId}/comments`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ body: newComment.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      setNewComment('');
+      const cRes = await fetch(`/api/businesses/${businessId}/comments`);
+      setComments(cRes.ok ? await cRes.json() : []);
+    } catch {
+      toast.error('Could not post comment');
+    } finally {
+      setPosting(false);
+    }
+  }
+
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !businessId) return;
     setUploading(true);
     try {
-      const signRes = await fetch('/api/attachments/sign', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ businessId, fileName: file.name, mime: file.type || 'application/octet-stream' }),
-      });
-      if (!signRes.ok) {
-        const data = await signRes.json().catch(() => ({}));
-        throw new Error(data.error ?? 'Could not get upload URL');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('businessId', businessId);
+      const res = await fetch('/api/attachments', { method: 'POST', body: form });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Upload failed');
       }
-      const { uploadUrl, key } = await signRes.json();
-      const put = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'content-type': file.type || 'application/octet-stream' },
-        body: file,
-      });
-      if (!put.ok) throw new Error('Upload to storage failed');
-      await fetch('/api/attachments', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ businessId, key, fileName: file.name, mime: file.type, size: file.size }),
-      });
       toast.success('File attached');
       await load(businessId);
     } catch (err) {
@@ -165,16 +205,24 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
         ) : (
           <>
             <SheetHeader className="px-0">
-              <div className="flex items-start justify-between gap-3 pr-8">
-                <div>
-                  <SheetTitle className="text-xl">{b.name}</SheetTitle>
-                  <SheetDescription>{b.category ?? 'Uncategorized'}</SheetDescription>
+              <div className="pr-8">
+                <SheetTitle className="text-xl">{b.name}</SheetTitle>
+                <SheetDescription>{b.category ?? 'Uncategorized'}</SheetDescription>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {detail.createdByName && (
+                    <Badge tone="zinc">Added by {detail.createdByName}</Badge>
+                  )}
+                  {detail.assignedToName && (
+                    <Badge tone="gold">
+                      <UserCheck className="mr-1 h-3 w-3" />
+                      {detail.assignedToName}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </SheetHeader>
 
             <div className="space-y-6 px-6 pb-10">
-              {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">
                 <Stat label="Reviews" value={formatNumber(b.reviewCount)} />
                 <Stat
@@ -193,23 +241,38 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
                 <Stat label="Score" value={<OpportunityMeter score={b.opportunityScore} />} />
               </div>
 
-              {/* Status + archive */}
-              <div className="flex items-center gap-2">
-                <Select value={b.status} onValueChange={(v) => changeStatus(v as LeadStatus)}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
+              {/* Status + assignee + archive */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Select value={b.status} onValueChange={(v) => changeStatus(v as LeadStatus)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEAD_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {LEAD_STATUS_LABELS[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="icon" onClick={toggleArchive} title={b.isArchived ? 'Restore' : 'Archive'}>
+                    {b.isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <Select value={b.assignedTo ?? UNASSIGNED} onValueChange={changeAssignee}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Assign to…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {LEAD_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {LEAD_STATUS_LABELS[s]}
+                    <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                    {members.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="icon" onClick={toggleArchive} title={b.isArchived ? 'Restore' : 'Archive'}>
-                  {b.isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-                </Button>
               </div>
 
               <Separator />
@@ -217,16 +280,8 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
               {/* Contact */}
               <div className="space-y-2.5 text-sm">
                 <ContactRow icon={<MapPin className="h-4 w-4" />} value={b.address} />
-                <ContactRow
-                  icon={<Phone className="h-4 w-4" />}
-                  value={b.phone}
-                  href={b.phone ? `tel:${b.phone}` : undefined}
-                />
-                <ContactRow
-                  icon={<Mail className="h-4 w-4" />}
-                  value={b.email}
-                  href={b.email ? `mailto:${b.email}` : undefined}
-                />
+                <ContactRow icon={<Phone className="h-4 w-4" />} value={b.phone} href={b.phone ? `tel:${b.phone}` : undefined} />
+                <ContactRow icon={<Mail className="h-4 w-4" />} value={b.email} href={b.email ? `mailto:${b.email}` : undefined} />
                 <ContactRow
                   icon={<Globe className="h-4 w-4" />}
                   value={b.website ?? 'No website'}
@@ -261,21 +316,43 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
                 </div>
               </div>
 
-              {/* Notes */}
+              <Separator />
+
+              {/* Comments */}
               <div>
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Notes
+                  Comments
                 </h4>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Call notes, owner name, quote details…"
-                  rows={4}
-                />
-                <Button size="sm" className="mt-2" onClick={saveNotes} disabled={savingNotes}>
-                  {savingNotes && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Save notes
-                </Button>
+                <div className="space-y-3">
+                  {comments.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No comments yet. Start the thread.</p>
+                  )}
+                  {comments.map((c) => (
+                    <div key={c.id} className="rounded-lg border border-border/60 bg-card/60 p-3">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-gold">
+                          {c.authorName ?? 'Former member'}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {formatRelativeTime(c.createdAt)}
+                        </span>
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm">{c.body}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 space-y-2">
+                  <Textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Add a comment — call notes, owner name, next step…"
+                    rows={3}
+                  />
+                  <Button size="sm" onClick={postComment} disabled={posting || !newComment.trim()}>
+                    {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    Post comment
+                  </Button>
+                </div>
               </div>
 
               <Separator />
@@ -345,9 +422,7 @@ function ContactRow({
   highlight?: boolean;
 }) {
   if (!value) return null;
-  const content = (
-    <span className={highlight ? 'text-rose-300' : 'text-foreground'}>{value}</span>
-  );
+  const content = <span className={highlight ? 'text-rose-300' : 'text-foreground'}>{value}</span>;
   return (
     <div className="flex items-start gap-2.5">
       <span className="mt-0.5 text-muted-foreground">{icon}</span>

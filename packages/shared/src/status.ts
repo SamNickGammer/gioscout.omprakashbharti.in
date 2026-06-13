@@ -37,3 +37,7 @@ export const LEAD_STATUS_TONE: Record<LeadStatus, string> = {
 
 export const OPPORTUNITY_TIERS = ['high', 'medium', 'low'] as const;
 export type OpportunityTier = (typeof OPPORTUNITY_TIERS)[number];
+
+/** Team roles. Admins manage users; members do everything else. */
+export const USER_ROLES = ['admin', 'member'] as const;
+export type UserRole = (typeof USER_ROLES)[number];

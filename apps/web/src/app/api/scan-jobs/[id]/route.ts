@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { closeScanJobSchema } from '@geoscout/shared';
-import { checkIngestKey, errorJson, json } from '@/lib/api';
+import { authenticateApiKey, errorJson, json } from '@/lib/api';
 import { db } from '@/db';
 import { scanJobs } from '@/db/schema';
 
@@ -12,7 +12,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!checkIngestKey(req)) return errorJson('Unauthorized', 401);
+  const user = await authenticateApiKey(req);
+  if (!user) return errorJson('Unauthorized', 401);
 
   const { id } = await params;
   const parsed = closeScanJobSchema.safeParse(await req.json().catch(() => null));

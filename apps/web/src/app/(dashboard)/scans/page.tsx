@@ -1,7 +1,7 @@
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { Radar } from 'lucide-react';
 import { db } from '@/db';
-import { scanJobs } from '@/db/schema';
+import { scanJobs, users } from '@/db/schema';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,7 +23,22 @@ const STATUS_TONE = {
 } as const;
 
 export default async function ScansPage() {
-  const jobs = await db.select().from(scanJobs).orderBy(desc(scanJobs.startedAt)).limit(100);
+  const jobs = await db
+    .select({
+      id: scanJobs.id,
+      query: scanJobs.query,
+      area: scanJobs.area,
+      status: scanJobs.status,
+      foundCount: scanJobs.foundCount,
+      newCount: scanJobs.newCount,
+      updatedCount: scanJobs.updatedCount,
+      startedAt: scanJobs.startedAt,
+      ranBy: users.name,
+    })
+    .from(scanJobs)
+    .leftJoin(users, eq(scanJobs.userId, users.id))
+    .orderBy(desc(scanJobs.startedAt))
+    .limit(100);
 
   return (
     <div className="space-y-6">
@@ -48,7 +63,7 @@ export default async function ScansPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Query</TableHead>
-                <TableHead>Area</TableHead>
+                <TableHead>Ran by</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Found</TableHead>
                 <TableHead className="text-right">New</TableHead>
@@ -60,7 +75,7 @@ export default async function ScansPage() {
               {jobs.map((j) => (
                 <TableRow key={j.id}>
                   <TableCell className="font-medium">{j.query}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{j.area ?? '—'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{j.ranBy ?? '—'}</TableCell>
                   <TableCell>
                     <Badge tone={STATUS_TONE[j.status]}>{j.status}</Badge>
                   </TableCell>

@@ -23,6 +23,7 @@ const patchSchema = z.object({
   status: z.enum(LEAD_STATUSES).optional(),
   notes: z.string().max(5000).optional().nullable(),
   isArchived: z.boolean().optional(),
+  assignedTo: z.string().uuid().nullable().optional(),
 });
 
 /** PATCH — update USER-owned fields only (status / notes / archive). */
@@ -39,6 +40,7 @@ export async function PATCH(
   const update: Record<string, unknown> = { updatedAt: new Date() };
   if (parsed.data.status !== undefined) update.status = parsed.data.status;
   if (parsed.data.notes !== undefined) update.notes = parsed.data.notes;
+  if (parsed.data.assignedTo !== undefined) update.assignedTo = parsed.data.assignedTo;
   if (parsed.data.isArchived !== undefined) {
     update.isArchived = parsed.data.isArchived;
     // Keep status coherent with the archive flag.

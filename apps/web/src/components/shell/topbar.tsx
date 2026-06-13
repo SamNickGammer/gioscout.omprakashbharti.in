@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
+import type { UserRole } from '@geoscout/shared';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export function Topbar({ email }: { email: string }) {
+export function Topbar({ name, email, role }: { name: string; email: string; role: UserRole }) {
   const router = useRouter();
 
   async function logout() {
@@ -30,13 +31,17 @@ export function Topbar({ email }: { email: string }) {
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-gradient text-[10px] font-bold text-gold-foreground">
-              {email.charAt(0).toUpperCase()}
+              {name.charAt(0).toUpperCase()}
             </span>
-            <span className="hidden sm:inline">{email}</span>
+            <span className="hidden sm:inline">{name}</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel>Signed in</DropdownMenuLabel>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>
+            <div>{name}</div>
+            <div className="text-[11px] font-normal text-muted-foreground">{email}</div>
+            <div className="mt-1 text-[11px] font-normal capitalize text-gold">{role}</div>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
             <LogOut className="h-4 w-4" />

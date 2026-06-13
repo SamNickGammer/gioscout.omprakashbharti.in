@@ -7,13 +7,14 @@ import {
 import { db } from '@/db';
 import { businesses, businessScanHistory, type NewBusiness } from '@/db/schema';
 
-function toRow(b: ScrapedBusiness): NewBusiness {
+function toRow(b: ScrapedBusiness, createdBy: string | null): NewBusiness {
   const website = b.website?.trim() || null;
   const hasWebsite = !!website;
   const reviewCount = b.reviewCount ?? 0;
   const rating = b.rating ?? null;
   return {
     placeId: b.placeId,
+    createdBy,
     name: b.name,
     category: b.category ?? null,
     address: b.address ?? null,
@@ -47,6 +48,7 @@ function toRow(b: ScrapedBusiness): NewBusiness {
  */
 export async function ingestBusinesses(
   incoming: ScrapedBusiness[],
+  createdBy: string | null = null,
 ): Promise<IngestResult> {
   // De-dupe within the batch itself (last write wins per placeId).
   const byPlaceId = new Map<string, ScrapedBusiness>();
@@ -71,11 +73,12 @@ export async function ingestBusinesses(
 
   const existing = new Map(existingRows.map((r) => [r.placeId, r]));
 
-  const rows = unique.map(toRow);
+  const rows = unique.map((b) => toRow(b, createdBy));
 
   // Single upsert for the whole batch. Conflict target = unique place_id.
-  // NOTE: status, notes, is_archived, first_seen_at are intentionally absent
-  // from the SET clause so a scan never clobbers user-owned lifecycle data.
+  // NOTE: status, notes, is_archived, assigned_to, created_by, first_seen_at are
+  // intentionally absent from the SET clause so a scan never clobbers user-owned
+  // lifecycle/attribution data (created_by stays whoever first added the lead).
   const upserted = await db
     .insert(businesses)
     .values(rows)

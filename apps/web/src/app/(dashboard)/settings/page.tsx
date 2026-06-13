@@ -1,16 +1,24 @@
+import { eq } from 'drizzle-orm';
 import { Chrome, KeyRound, Link2, Database } from 'lucide-react';
+import { getSession } from '@/lib/auth';
+import { db } from '@/db';
+import { users } from '@/db/schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { CopyField } from '@/components/team/copy-field';
 
 export const dynamic = 'force-dynamic';
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await getSession();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const r2Configured = !!(
-    process.env.R2_ACCOUNT_ID &&
-    process.env.R2_ACCESS_KEY_ID &&
-    process.env.R2_SECRET_ACCESS_KEY
+  const storageConfigured = !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
   );
+
+  const [me] = session
+    ? await db.select({ apiKey: users.apiKey }).from(users).where(eq(users.id, session.userId)).limit(1)
+    : [];
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -22,26 +30,28 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Chrome className="h-5 w-5 text-gold" /> Chrome extension
+            <Chrome className="h-5 w-5 text-gold" /> Your Chrome extension
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           <p className="text-muted-foreground">
             Build the extension (<code className="rounded bg-muted px-1.5 py-0.5">yarn ext:build</code>), load{' '}
             <code className="rounded bg-muted px-1.5 py-0.5">apps/extension/dist</code> as an unpacked extension in{' '}
-            <code className="rounded bg-muted px-1.5 py-0.5">chrome://extensions</code>, then set these in its Options:
+            <code className="rounded bg-muted px-1.5 py-0.5">chrome://extensions</code>, then paste these into its Options:
           </p>
-          <Field icon={<Link2 className="h-4 w-4" />} label="API base URL" value={appUrl} />
-          <Field
-            icon={<KeyRound className="h-4 w-4" />}
-            label="Ingest API key"
-            value="The INGEST_API_KEY from your environment"
+          <CopyField label="API base URL" value={appUrl} icon="link" />
+          <CopyField
+            label="Your personal API key"
+            value={me?.apiKey ?? '—'}
+            icon="key"
+            secret
+            hint="Unique to you — scans you run are credited to your account. Don't share it."
           />
           <Separator />
           <p className="text-xs text-muted-foreground">
             Open Google Maps, run a search like “restaurant in Patna”, and click{' '}
             <span className="font-medium text-foreground">Start scan</span> in the GeoScout popup. Leads stream
-            here automatically, deduped by Google Place ID.
+            into the shared pool, deduped by Google Place ID and tagged as added by you.
           </p>
         </CardContent>
       </Card>
@@ -53,21 +63,14 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <Row label="Database" value="Neon Postgres" ok />
-          <Row label="File storage (R2)" value={r2Configured ? 'Configured' : 'Not configured'} ok={r2Configured} />
+          <Row label="Database" value="Supabase Postgres" ok />
+          <Row
+            label="File storage"
+            value={storageConfigured ? 'Supabase Storage' : 'Not configured'}
+            ok={storageConfigured}
+          />
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function Field({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border/60 bg-card/60 p-3">
-      <div className="mb-1 inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-        {icon} {label}
-      </div>
-      <div className="font-mono text-sm">{value}</div>
     </div>
   );
 }

@@ -12,16 +12,40 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { LEAD_STATUSES, SCAN_JOB_STATUSES } from '@geoscout/shared';
+import { LEAD_STATUSES, SCAN_JOB_STATUSES, USER_ROLES } from '@geoscout/shared';
 import type { Socials } from '@geoscout/shared';
 
 export const leadStatusEnum = pgEnum('lead_status', LEAD_STATUSES);
 export const scanJobStatusEnum = pgEnum('scan_job_status', SCAN_JOB_STATUSES);
+export const userRoleEnum = pgEnum('user_role', USER_ROLES);
+
+/**
+ * Team members. The dataset is shared — everyone sees every lead — but actions
+ * are attributed back to a user. Each user also has a personal `apiKey` that
+ * their Chrome extension sends, so scans/leads are credited to the right person.
+ */
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    role: userRoleEnum('role').notNull().default('member'),
+    apiKey: text('api_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    emailUnique: uniqueIndex('users_email_unique').on(t.email),
+    apiKeyUnique: uniqueIndex('users_api_key_unique').on(t.apiKey),
+  }),
+);
 
 /**
  * The canonical, deduped business record. One row per Google `place_id`.
- * `status`, `notes`, and `isArchived` are user-owned and NEVER overwritten by
- * a scan — scans only refresh the Google-sourced fields + timestamps.
+ * `status`, `notes`, `isArchived`, `assignedTo`, and `createdBy` are user-owned
+ * and NEVER overwritten by a scan — scans only refresh Google-sourced fields.
  */
 export const businesses = pgTable(
   'businesses',
@@ -56,6 +80,10 @@ export const businesses = pgTable(
     status: leadStatusEnum('status').notNull().default('active'),
     notes: text('notes'),
     isArchived: boolean('is_archived').notNull().default(false),
+
+    // Attribution — who first added it, and who's actively working it.
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    assignedTo: uuid('assigned_to').references(() => users.id, { onDelete: 'set null' }),
 
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
@@ -92,7 +120,24 @@ export const businessScanHistory = pgTable(
   }),
 );
 
-/** One row per scan run — gives a complete history of what was scanned. */
+/** A comment thread per lead — every comment attributed to its author. */
+export const leadComments = pgTable(
+  'lead_comments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    businessIdx: index('lead_comments_business_idx').on(t.businessId),
+  }),
+);
+
+/** One row per scan run — attributed to the user whose API key ran it. */
 export const scanJobs = pgTable('scan_jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
   query: text('query').notNull(),
@@ -100,6 +145,7 @@ export const scanJobs = pgTable('scan_jobs', {
   area: text('area'),
   source: text('source').notNull().default('extension'),
   status: scanJobStatusEnum('status').notNull().default('running'),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   foundCount: integer('found_count').notNull().default(0),
   newCount: integer('new_count').notNull().default(0),
   updatedCount: integer('updated_count').notNull().default(0),
@@ -115,7 +161,7 @@ export const filterTemplates = pgTable('filter_templates', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Cloudflare R2 file pointers attached to a business. */
+/** Supabase Storage file pointers attached to a business. */
 export const attachments = pgTable(
   'attachments',
   {
@@ -134,9 +180,12 @@ export const attachments = pgTable(
   }),
 );
 
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export type Business = typeof businesses.$inferSelect;
 export type NewBusiness = typeof businesses.$inferInsert;
 export type ScanJob = typeof scanJobs.$inferSelect;
 export type FilterTemplate = typeof filterTemplates.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
 export type ScanHistoryRow = typeof businessScanHistory.$inferSelect;
+export type LeadComment = typeof leadComments.$inferSelect;

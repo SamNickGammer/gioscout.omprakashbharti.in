@@ -1,3 +1,4 @@
+import { alias } from 'drizzle-orm/pg-core';
 import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { LeadFilter } from '@geoscout/shared';
 import { db } from '@/db';
@@ -5,6 +6,7 @@ import {
   attachments,
   businesses,
   businessScanHistory,
+  users,
   type Business,
 } from '@/db/schema';
 
@@ -92,7 +94,20 @@ export async function listBusinesses(f: LeadFilter): Promise<ListResult> {
 }
 
 export async function getBusinessDetail(id: string) {
-  const [row] = await db.select().from(businesses).where(eq(businesses.id, id)).limit(1);
+  const creator = alias(users, 'creator');
+  const assignee = alias(users, 'assignee');
+
+  const [row] = await db
+    .select({
+      business: businesses,
+      createdByName: creator.name,
+      assignedToName: assignee.name,
+    })
+    .from(businesses)
+    .leftJoin(creator, eq(businesses.createdBy, creator.id))
+    .leftJoin(assignee, eq(businesses.assignedTo, assignee.id))
+    .where(eq(businesses.id, id))
+    .limit(1);
   if (!row) return null;
 
   const [history, files] = await Promise.all([
@@ -104,7 +119,13 @@ export async function getBusinessDetail(id: string) {
     db.select().from(attachments).where(eq(attachments.businessId, id)),
   ]);
 
-  return { business: row, history, attachments: files };
+  return {
+    business: row.business,
+    createdByName: row.createdByName,
+    assignedToName: row.assignedToName,
+    history,
+    attachments: files,
+  };
 }
 
 export interface DashboardStats {
