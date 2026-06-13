@@ -1,0 +1,52 @@
+name: Release extension
+
+# Push a version tag (e.g. `git tag v0.1.0 && git push --tags`) to build the
+# Chrome extension and attach the zip to a GitHub Release automatically.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build extension
+        run: yarn ext:build
+
+      - name: Package extension (manifest at zip root)
+        run: |
+          cd apps/extension/dist
+          zip -r "../../../geoscout-extension-${GITHUB_REF_NAME}.zip" .
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: geoscout-extension-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          name: GeoScout ${{ github.ref_name }}
+          body: |
+            ## GeoScout Chrome extension — ${{ github.ref_name }}
+
+            **Install (unpacked):**
+            1. Download `geoscout-extension-${{ github.ref_name }}.zip` below and unzip it
+            2. Open `chrome://extensions` → enable **Developer mode** (top-right)
+            3. Click **Load unpacked** → select the unzipped folder
+            4. Open the extension **Options** — the API URL is preset to
+               `https://geoscout.omprakashbharti.in`; paste your personal API key
+               from the dashboard → **Settings**
+
+            Then open Google Maps, run a search, and click **Start scan**.
