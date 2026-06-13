@@ -2,20 +2,15 @@ import type { ScrapedBusiness } from '@geoscout/shared';
 
 export type { ScrapedBusiness };
 
+/** Persistent connection settings — the only two things in Options. */
 export interface ExtensionConfig {
   apiBaseUrl: string;
   apiKey: string;
-  /** Open each place's detail panel to capture phone/website/socials. */
-  deepScrape: boolean;
-  /** Safety cap so a runaway scan can't loop forever. 0 = no cap. */
-  maxResults: number;
 }
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
   apiBaseUrl: 'http://localhost:3000',
   apiKey: '',
-  deepScrape: true,
-  maxResults: 0,
 };
 
 export interface ScanProgress {

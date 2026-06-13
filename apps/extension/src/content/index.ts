@@ -1,4 +1,3 @@
-import { getConfig } from '../lib/storage';
 import type { Message, ScrapedBusiness } from '../lib/types';
 import { MapsScraper } from './scraper';
 
@@ -13,10 +12,9 @@ async function startScan() {
   if (scraper) return; // already running
   stopRequested = false;
   scraper = new MapsScraper();
-  const config = await getConfig();
 
   try {
-    const found = await scraper.run(config, {
+    const found = await scraper.run({
       onOpened: async (query) => {
         await send({ type: 'SCAN_OPENED', query });
       },

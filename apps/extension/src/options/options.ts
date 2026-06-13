@@ -4,8 +4,6 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 const apiBaseUrl = $<HTMLInputElement>('apiBaseUrl');
 const apiKey = $<HTMLInputElement>('apiKey');
-const maxResults = $<HTMLInputElement>('maxResults');
-const deepScrape = $<HTMLInputElement>('deepScrape');
 const status = $('status');
 
 function setStatus(text: string, ok?: boolean) {
@@ -17,17 +15,10 @@ async function load() {
   const cfg = await getConfig();
   apiBaseUrl.value = cfg.apiBaseUrl;
   apiKey.value = cfg.apiKey;
-  maxResults.value = String(cfg.maxResults);
-  deepScrape.checked = cfg.deepScrape;
 }
 
 $('save').addEventListener('click', async () => {
-  await setConfig({
-    apiBaseUrl: apiBaseUrl.value.trim(),
-    apiKey: apiKey.value.trim(),
-    maxResults: Math.max(0, parseInt(maxResults.value, 10) || 0),
-    deepScrape: deepScrape.checked,
-  });
+  await setConfig({ apiBaseUrl: apiBaseUrl.value.trim(), apiKey: apiKey.value.trim() });
   setStatus('Saved.', true);
 });
 

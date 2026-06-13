@@ -4,7 +4,12 @@
   "version": "0.1.0",
   "description": "Auto-scrapes Google Maps search results into your GeoScout lead database, deduped by Place ID.",
   "permissions": ["storage", "tabs", "scripting"],
-  "host_permissions": ["https://www.google.com/maps/*"],
+  "host_permissions": [
+    "https://www.google.com/maps/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*.omprakashbharti.in/*"
+  ],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn, formatNumber, formatRelativeTime } from '@/lib/utils';
+import { cn, displayCategory, formatNumber, formatRelativeTime } from '@/lib/utils';
 import { StatusBadge } from './status-badge';
 import { OpportunityMeter } from './opportunity-meter';
 
@@ -54,7 +54,7 @@ export function LeadsTable({ rows, loading, onSelect }: Props) {
           <TableRow key={b.id} className="cursor-pointer" onClick={() => onSelect(b.id)}>
             <TableCell>
               <div className="font-medium text-foreground">{b.name}</div>
-              <div className="text-xs text-muted-foreground">{b.category ?? '—'}</div>
+              <div className="text-xs text-muted-foreground">{displayCategory(b.category)}</div>
             </TableCell>
             <TableCell className="text-sm text-muted-foreground">
               {b.city ?? '—'}

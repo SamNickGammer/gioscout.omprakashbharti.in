@@ -44,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatNumber, formatRelativeTime } from '@/lib/utils';
+import { displayCategory, formatNumber, formatRelativeTime, isHoursText } from '@/lib/utils';
 import { OpportunityMeter } from './opportunity-meter';
 import { Sparkline } from './sparkline';
 
@@ -199,30 +199,34 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
 
   return (
     <Sheet open={!!businessId} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="overflow-y-auto">
+      <SheetContent className="w-full overflow-y-auto p-0 sm:w-[50vw] sm:max-w-none">
         {loading || !b ? (
           <DetailSkeleton />
         ) : (
           <>
-            <SheetHeader className="px-0">
-              <div className="pr-8">
-                <SheetTitle className="text-xl">{b.name}</SheetTitle>
-                <SheetDescription>{b.category ?? 'Uncategorized'}</SheetDescription>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {detail.createdByName && (
-                    <Badge tone="zinc">Added by {detail.createdByName}</Badge>
-                  )}
-                  {detail.assignedToName && (
-                    <Badge tone="gold">
-                      <UserCheck className="mr-1 h-3 w-3" />
-                      {detail.assignedToName}
-                    </Badge>
-                  )}
-                </div>
+            {/* Header band with a subtle gold wash */}
+            <div className="relative border-b border-border/60 bg-gradient-to-b from-gold/[0.06] to-transparent px-7 pb-5 pt-8">
+              <SheetHeader className="space-y-1 p-0 text-left">
+                <SheetTitle className="pr-10 text-2xl font-semibold leading-tight">
+                  {b.name}
+                </SheetTitle>
+                <SheetDescription className="text-sm">
+                  {displayCategory(b.category)}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {detail.createdByName && <Badge tone="zinc">Added by {detail.createdByName}</Badge>}
+                {detail.assignedToName && (
+                  <Badge tone="gold">
+                    <UserCheck className="mr-1 h-3 w-3" />
+                    {detail.assignedToName}
+                  </Badge>
+                )}
+                {!b.hasWebsite && <Badge tone="rose">No website</Badge>}
               </div>
-            </SheetHeader>
+            </div>
 
-            <div className="space-y-6 px-6 pb-10">
+            <div className="space-y-6 px-7 py-6">
               <div className="grid grid-cols-3 gap-3">
                 <Stat label="Reviews" value={formatNumber(b.reviewCount)} />
                 <Stat
@@ -279,7 +283,10 @@ export function LeadDetailSheet({ businessId, onClose, onUpdated }: Props) {
 
               {/* Contact */}
               <div className="space-y-2.5 text-sm">
-                <ContactRow icon={<MapPin className="h-4 w-4" />} value={b.address} />
+                <ContactRow
+                  icon={<MapPin className="h-4 w-4" />}
+                  value={b.address && !isHoursText(b.address) ? b.address : null}
+                />
                 <ContactRow icon={<Phone className="h-4 w-4" />} value={b.phone} href={b.phone ? `tel:${b.phone}` : undefined} />
                 <ContactRow icon={<Mail className="h-4 w-4" />} value={b.email} href={b.email ? `mailto:${b.email}` : undefined} />
                 <ContactRow

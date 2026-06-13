@@ -33,10 +33,22 @@ export const SELECTORS = {
 
   // ── Detail panel (after clicking a card) ──────────────────────────────
   detailPanel: ['div[role="main"]'],
-  detailWebsite: ['a[data-item-id="authority"]', 'a[data-item-id^="authority"]'],
-  detailPhone: ['button[data-item-id^="phone:tel:"]', 'button[data-item-id^="phone"]'],
-  detailAddress: ['button[data-item-id="address"]'],
+  detailName: ['h1.DUwDvf', 'h1'],
+  detailWebsite: [
+    'a[data-item-id="authority"]',
+    'a[data-item-id^="authority"]',
+    'a[aria-label^="Website:"]',
+  ],
+  detailPhone: [
+    'button[data-item-id^="phone:tel:"]',
+    'button[data-item-id^="phone"]',
+    'button[aria-label^="Phone:"]',
+    'a[aria-label^="Call "]',
+  ],
+  detailAddress: ['button[data-item-id="address"]', 'button[aria-label^="Address:"]'],
+  detailPlusCode: ['button[data-item-id="oloc"]', 'button[aria-label^="Plus code:"]'],
   detailCategory: ['button[jsaction*="category"]'],
+  detailEmail: ['a[href^="mailto:"]'],
 } as const;
 
 export function pick(root: ParentNode, key: keyof typeof SELECTORS): Element | null {
